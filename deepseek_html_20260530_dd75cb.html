@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Битва с Тунг Тунг Сахуром</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      overflow: hidden;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #000;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+    #menu-container {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; justify-content: center; align-items: center;
+      z-index: 100; background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(10px);
+      padding: 10px;
+    }
+    .menu-panel {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border-radius: 25px; padding: 25px 20px;
+      text-align: center; color: white;
+      border: 2px solid #ffb347;
+      box-shadow: 0 0 30px rgba(255,179,71,0.3);
+      width: 100%; max-width: 380px;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .menu-title {
+      font-size: clamp(1.5rem, 5vw, 2rem);
+      font-weight: bold; margin-bottom: 15px;
+      text-shadow: 0 0 15px #ffb347;
+    }
+    .menu-btn {
+      background: #222433; border: 2px solid #5a6b7a;
+      color: #f0e6d2; padding: 12px 20px;
+      border-radius: 30px; font-weight: bold;
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+      cursor: pointer; transition: 0.2s;
+      margin: 8px; width: calc(100% - 40px); max-width: 280px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .menu-btn:active { background: #3a405a; border-color: #ffb347; transform: scale(0.97); }
+    .character-select {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin: 15px 0;
+    }
+    .char-card {
+      background: rgba(0,0,0,0.5); border: 2px solid #555;
+      border-radius: 15px; padding: 12px 8px;
+      cursor: pointer; transition: 0.2s;
+      font-size: clamp(0.7rem, 2.5vw, 0.85rem);
+    }
+    .char-card.selected { border-color: #ffb347; box-shadow: 0 0 15px rgba(255,179,71,0.4); }
+    .char-name { font-size: clamp(0.9rem, 3vw, 1.1rem); font-weight: bold; margin-bottom: 5px; }
+    .char-desc { font-size: clamp(0.6rem, 2vw, 0.75rem); opacity: 0.8; line-height: 1.3; }
+
+    #game-ui {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: none; pointer-events: none; z-index: 5;
+    }
+    #ui-container {
+      position: absolute; top: 10px; left: 8px; right: 8px;
+      display: flex; justify-content: space-between;
+      color: white; text-shadow: 1px 1px 3px black;
+      font-size: clamp(0.6rem, 2vw, 0.75rem);
+      flex-wrap: wrap; gap: 5px;
+    }
+    .player-info, .boss-info, .npc-info {
+      background: rgba(0,0,0,0.7); border-radius: 12px;
+      padding: 6px 12px; backdrop-filter: blur(5px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .health-bar {
+      width: clamp(80px, 20vw, 150px); height: 10px;
+      background: #333; border-radius: 5px; margin: 3px 0;
+      overflow: hidden; border: 1px solid rgba(255,255,255,0.4);
+    }
+    .health-fill { height: 100%; background: #4caf50; transition: width 0.3s; }
+    .boss-health-fill { background: #e53935; }
+    .npc-health-fill { background: #2196F3; }
+
+    .message {
+      position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: #ffd966;
+      padding: 6px 16px; border-radius: 20px;
+      font-weight: bold; font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+      text-align: center; max-width: 90%; pointer-events: none;
+    }
+    .crosshair {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 16px; height: 16px; pointer-events: none;
+    }
+    .crosshair::before, .crosshair::after {
+      content: ''; position: absolute; background: rgba(255,255,255,0.8);
+    }
+    .crosshair::before { width: 1.5px; height: 16px; left: 7px; top: 0; }
+    .crosshair::after { width: 16px; height: 1.5px; left: 0; top: 7px; }
+
+    .abilities {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; pointer-events: auto;
+    }
+    .ability-btn {
+      background: rgba(20,20,40,0.85); backdrop-filter: blur(5px);
+      color: white; border: 1.5px solid #5a6b7a;
+      border-radius: 25px; padding: 8px 12px;
+      font-weight: bold; cursor: pointer;
+      font-size: clamp(0.6rem, 2vw, 0.75rem);
+      text-align: center; min-width: 70px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ability-btn:active { background: #3a405a; border-color: #ffb347; }
+    .ability-btn.disabled { opacity: 0.4; pointer-events: none; }
+    .ability-btn.on-cooldown { opacity: 0.5; border-color: #ff4444; }
+    .cooldown-text { font-size: 0.65rem; color: #ffaa00; }
+
+    .mobile-controls {
+      position: absolute; bottom: 100px; left: 10px; right: 10px;
+      display: flex; justify-content: space-between; pointer-events: auto;
+    }
+    .joystick-area {
+      width: 100px; height: 100px; position: relative;
+    }
+    .joystick-base {
+      width: 80px; height: 80px; background: rgba(255,255,255,0.15);
+      border-radius: 50%; position: absolute; top: 10px; left: 10px;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .joystick-thumb {
+      width: 36px; height: 36px; background: rgba(255,255,255,0.5);
+      border-radius: 50%; position: absolute; top: 32px; left: 32px;
+      transition: none;
+    }
+    .action-buttons {
+      display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+    }
+    .action-btn {
+      width: 55px; height: 55px; border-radius: 50%;
+      background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3);
+      color: white; font-size: 0.7rem; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn:active { background: rgba(255,255,255,0.35); }
+    .action-btn.attack-btn { background: rgba(255,50,50,0.3); border-color: #ff4444; }
+    .action-btn.ability-btn2 { background: rgba(50,100,255,0.3); border-color: #4488ff; }
+    .action-btn.ability-btn3 { background: rgba(255,150,0,0.3); border-color: #ffaa00; }
+
+    .instruction {
+      position: absolute; bottom: 95px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.5); font-size: 0.6rem;
+      pointer-events: none; text-align: center;
+    }
+    .shield-indicator, .skeleton-count {
+      position: absolute; top: 80px; right: 8px;
+      background: rgba(0,0,0,0.7); color: white;
+      padding: 4px 10px; border-radius: 15px;
+      font-weight: bold; font-size: 0.65rem; display: none;
+    }
+    .boss-abilities {
+      position: absolute; top: 110px; right: 8px;
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 0.6rem;
+    }
+    .boss-ability-indicator {
+      background: rgba(180,0,0,0.7); color: white;
+      padding: 3px 8px; border-radius: 12px;
+    }
+
+    @media (min-width: 768px) {
+      .mobile-controls { display: none; }
+      .instruction { bottom: 80px; }
+      .abilities { bottom: 25px; }
+    }
+    @media (max-width: 767px) {
+      .abilities { display: none; }
+      .instruction { bottom: 180px; font-size: 0.55rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="menu-container">
+    <div class="menu-panel" id="main-menu">
+      <div class="menu-title" id="menu-title">🦈 Тралала Трелоло</div>
+      <button class="menu-btn" id="play-btn">⚔️ Играть</button>
+      <button class="menu-btn" id="char-btn">👥 Персонажи</button>
+    </div>
+    <div class="menu-panel" id="char-menu" style="display:none;">
+      <div class="menu-title">Выбор персонажа</div>
+      <div class="character-select">
+        <div class="char-card selected" id="char-shark"><div class="char-name">🦈 Тралала</div><div class="char-desc">Удар·Рывок·Челюсть</div></div>
+        <div class="char-card" id="char-slime"><div class="char-name">🟢 Слизь</div><div class="char-desc">Щит·Пожиратель</div></div>
+        <div class="char-card" id="char-summoner"><div class="char-name">💀 Призыватель</div><div class="char-desc">Скелетики</div></div>
+        <div class="char-card" id="char-human"><div class="char-name">👤 Человек</div><div class="char-desc">Полёт·Суперудар</div></div>
+      </div>
+      <button class="menu-btn" id="back-btn">↩️ Назад</button>
+    </div>
+  </div>
+
+  <div id="game-ui">
+    <div id="ui-container">
+      <div class="player-info"><div id="player-name">🦈 Тралала</div><div class="health-bar"><div id="playerHealth" class="health-fill" style="width:100%"></div></div></div>
+      <div class="npc-info"><div id="npc-name">🤝 Друг</div><div class="health-bar"><div id="npcHealth" class="health-fill npc-health-fill" style="width:100%"></div></div></div>
+      <div class="boss-info"><div>🐗 Тунг Тунг Сахур</div><div class="health-bar"><div id="bossHealth" class="health-fill boss-health-fill" style="width:100%"></div></div></div>
+    </div>
+    <div class="message" id="messageLog"></div>
+    <div class="crosshair"></div>
+    <div class="abilities" id="abilities-container"></div>
+    <div class="mobile-controls" id="mobile-controls">
+      <div class="joystick-area" id="joystick-area">
+        <div class="joystick-base"></div>
+        <div class="joystick-thumb" id="joystick-thumb"></div>
+      </div>
+      <div class="action-buttons">
+        <button class="action-btn attack-btn" id="mobile-attack">⚔️</button>
+        <button class="action-btn ability-btn2" id="mobile-ability2">2</button>
+        <button class="action-btn ability-btn3" id="mobile-ability3">3</button>
+      </div>
+    </div>
+    <div class="instruction">Коснитесь экрана для управления · Кнопки способностей справа</div>
+    <div class="shield-indicator" id="shield-indicator">🛡️ Щит</div>
+    <div class="skeleton-count" id="skeleton-count">💀 0</div>
+    <div class="boss-abilities">
+      <div class="boss-ability-indicator" id="boss-bat-cd">🏏 Бита</div>
+      <div class="boss-ability-indicator" id="boss-pentagram-cd">⭐ Пента</div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.128.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/" } }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+
+    const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || window.innerWidth < 768;
+    
+    let selectedCharacter = 'shark', gameStarted = false;
+    const menuTitle = document.getElementById('menu-title');
+
+    function updateMenuTitle() {
+      const t = { shark: '🦈 Тралала Трелоло', slime: '🟢 Слизь', summoner: '💀 Призыватель', human: '👤 Человек' };
+      menuTitle.textContent = t[selectedCharacter] || '🦈 Тралала Трелоло';
+    }
+
+    document.getElementById('play-btn').addEventListener('click', startGame);
+    document.getElementById('char-btn').addEventListener('click', () => {
+      document.getElementById('main-menu').style.display = 'none';
+      document.getElementById('char-menu').style.display = 'block';
+    });
+    document.getElementById('back-btn').addEventListener('click', () => {
+      document.getElementById('char-menu').style.display = 'none';
+      document.getElementById('main-menu').style.display = 'block';
+    });
+
+    ['char-shark','char-slime','char-summoner','char-human'].forEach(id => {
+      document.getElementById(id).addEventListener('click', () => {
+        selectedCharacter = id.replace('char-','');
+        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById(id).classList.add('selected');
+        updateMenuTitle();
+      });
+    });
+
+    function startGame() {
+      document.getElementById('menu-container').style.display = 'none';
+      document.getElementById('game-ui').style.display = 'block';
+      if (isMobile) document.getElementById('mobile-controls').style.display = 'flex';
+      if (!gameStarted) { gameStarted = true; initGame(); }
+      else { resetGame(); initAbilities(); }
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a2b3c);
+    scene.fog = new THREE.Fog(0x1a2b3c, 12, 60);
+
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.2, 100);
+    camera.position.set(0, 3.5, 12);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = !isMobile;
+    document.body.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild(labelRenderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0x404066));
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+    dirLight.position.set(20, 30, 15);
+    if (!isMobile) { dirLight.castShadow = true; dirLight.receiveShadow = true; }
+    scene.add(dirLight);
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(60, 60),
+      new THREE.MeshStandardMaterial({ color: 0x2d5a3b, roughness: 0.9 })
+    );
+    ground.rotation.x = -Math.PI/2; ground.position.y = 0;
+    ground.receiveShadow = !isMobile;
+    scene.add(ground);
+
+    const playerGroup = new THREE.Group(); playerGroup.position.set(0, 3.5, 10); scene.add(playerGroup);
+    const npcGroup = new THREE.Group(); npcGroup.position.set(3, 3.5, 8); scene.add(npcGroup);
+    npcGroup.add(new THREE.Mesh(new THREE.ConeGeometry(0.6,1.8,6), new THREE.MeshStandardMaterial({color:0x4a6c8f})).position.y=0.6);
+    npcGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.5,8,8), new THREE.MeshStandardMaterial({color:0x5a7c9f})).position.y=1.3);
+
+    const bossGroup = new THREE.Group(); bossGroup.position.set(0, 0, -8); scene.add(bossGroup);
+    bossGroup.add(new THREE.Mesh(new THREE.BoxGeometry(2.2,2.6,2.6), new THREE.MeshStandardMaterial({color:0xb71c1c})).position.y=1.4);
+    bossGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.2,10,10), new THREE.MeshStandardMaterial({color:0xd32f2f})).position.set(0,2.3,1.4));
+    const pentagram = new THREE.Mesh(new THREE.RingGeometry(0.4,2.2,5), new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide,transparent:true,opacity:0.5}));
+    pentagram.rotation.x=-Math.PI/2; pentagram.position.y=0.1; pentagram.visible=false; bossGroup.add(pentagram);
+
+    // Управление
+    let controls = null;
+    if (!isMobile) {
+      controls = new PointerLockControls(camera, document.body);
+      document.body.addEventListener('click', () => { if(gameStarted && !controls.isLocked) controls.lock(); });
+    }
+
+    const moveState = { forward: false, backward: false, left: false, right: false };
+    let joystickActive = false, joystickX = 0, joystickY = 0;
+
+    if (isMobile) {
+      const area = document.getElementById('joystick-area');
+      const thumb = document.getElementById('joystick-thumb');
+      
+      area.addEventListener('touchstart', (e) => {
+        e.preventDefault(); joystickActive = true;
+        updateJoystick(e.touches[0]);
+      });
+      area.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (joystickActive) updateJoystick(e.touches[0]);
+      });
+      area.addEventListener('touchend', (e) => {
+        e.preventDefault(); joystickActive = false;
+        thumb.style.left = '32px'; thumb.style.top = '32px';
+        joystickX = 0; joystickY = 0;
+        moveState.forward = false; moveState.backward = false;
+        moveState.left = false; moveState.right = false;
+      });
+
+      function updateJoystick(touch) {
+        const rect = area.getBoundingClientRect();
+        const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+        let dx = touch.clientX - cx, dy = touch.clientY - cy;
+        const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 40);
+        const angle = Math.atan2(dy, dx);
+        dx = Math.cos(angle) * dist; dy = Math.sin(angle) * dist;
+        thumb.style.left = (32 + dx) + 'px';
+        thumb.style.top = (32 + dy) + 'px';
+        joystickX = dx / 40; joystickY = dy / 40;
+        moveState.forward = joystickY < -0.2;
+        moveState.backward = joystickY > 0.2;
+        moveState.left = joystickX < -0.2;
+        moveState.right = joystickX > 0.2;
+      }
+
+      document.getElementById('mobile-attack').addEventListener('touchstart', (e) => { e.preventDefault(); ability1(); });
+      document.getElementById('mobile-ability2').addEventListener('touchstart', (e) => { e.preventDefault(); ability2(); });
+      document.getElementById('mobile-ability3').addEventListener('touchstart', (e) => { e.preventDefault(); ability3(); });
+
+      // Поворот камеры касанием
+      let touchStartX = 0, touchStartY = 0, cameraRotate = false;
+      document.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.action-btn') || e.target.closest('.joystick-area') || e.target.closest('.ability-btn')) return;
+        if (e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          cameraRotate = true;
+        }
+      });
+      document.addEventListener('touchmove', (e) => {
+        if (!cameraRotate) return;
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        camera.rotation.y -= dx * 0.005;
+        camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x - dy * 0.005));
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      });
+      document.addEventListener('touchend', () => { cameraRotate = false; });
+    } else {
+      window.addEventListener('keydown', (e) => {
+        if (!gameStarted) return;
+        const k = e.key.toLowerCase();
+        if (k==='w') { moveState.forward=true; e.preventDefault(); }
+        if (k==='s') { moveState.backward=true; e.preventDefault(); }
+        if (k==='a') { moveState.left=true; e.preventDefault(); }
+        if (k==='d') { moveState.right=true; e.preventDefault(); }
+      });
+      window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k==='w') moveState.forward=false;
+        if (k==='s') moveState.backward=false;
+        if (k==='a') moveState.left=false;
+        if (k==='d') moveState.right=false;
+      });
+    }
+
+    let playerHealth=100, bossHealth=300, npcHealth=100;
+    const maxPH=100, maxBH=300, maxNH=100;
+    let flightMode=false, flightTimer=0, flightBombs=[], autoBombTimer=0;
+    let superFlightMode=false, superFlightTimer=0;
+    let playerInvincible=false, invincibleTimer=0, playerStunned=false, stunTimer=0;
+    let bossAttackTimer=0, bossSpecialTimer=0, activeAttacks=[];
+    let shieldActive=false, shieldCanAbsorb=false, bossBuffed=false, bossBuffTimer=0;
+    let messageTimer=0;
+    let npcFlightMode=false, npcFlightTimer=0, npcBombs=[], npcAutoBombTimer=0;
+    let npcCooldowns={ability2:0,ability3:0}, npcAttackTimer=0;
+    const NPC_COOLDOWNS={ability2:10,ability3:6};
+    let playerCooldowns={ability2:0,ability3:0,summon:0};
+    const PLAYER_COOLDOWNS={ability2:8,ability3:12,summon:1,superFlight:10};
+    let bossCooldowns={bat:0,pentagram:0};
+    const BOSS_COOLDOWNS={bat:5,pentagram:12};
+    let skeletons=[];
+
+    const playerHealthBar=document.getElementById('playerHealth');
+    const bossHealthBar=document.getElementById('bossHealth');
+    const npcHealthBar=document.getElementById('npcHealth');
+    const messageEl=document.getElementById('messageLog');
+    const playerNameEl=document.getElementById('player-name');
+    const npcNameEl=document.getElementById('npc-name');
+    const shieldIndicator=document.getElementById('shield-indicator');
+    const skeletonCount=document.getElementById('skeleton-count');
+    const bossBatCdEl=document.getElementById('boss-bat-cd');
+    const bossPentagramCdEl=document.getElementById('boss-pentagram-cd');
+    const abilitiesContainer=document.getElementById('abilities-container');
+
+    function updateUI() {
+      playerHealthBar.style.width=(playerHealth/maxPH*100)+'%';
+      bossHealthBar.style.width=(bossHealth/maxBH*100)+'%';
+      npcHealthBar.style.width=(npcHealth/maxNH*100)+'%';
+      if (selectedCharacter==='summoner') {
+        skeletonCount.style.display='block';
+        skeletonCount.textContent=`💀 ${skeletons.length}`;
+      } else skeletonCount.style.display='none';
+    }
+
+    function updateCooldownUI() {
+      const btn2=document.getElementById('btn2'), btn3=document.getElementById('btn3');
+      if (btn2) {
+        const cd=btn2.querySelector('.cooldown-text');
+        cd.textContent=playerCooldowns.ability2>0?playerCooldowns.ability2.toFixed(1)+'s':'Готов';
+        btn2.classList.toggle('on-cooldown',playerCooldowns.ability2>0);
+      }
+      if (btn3) {
+        const cd=btn3.querySelector('.cooldown-text');
+        if (selectedCharacter==='human') { cd.textContent='Готов'; btn3.classList.remove('on-cooldown'); }
+        else { cd.textContent=playerCooldowns.ability3>0?playerCooldowns.ability3.toFixed(1)+'s':'Готов'; btn3.classList.toggle('on-cooldown',playerCooldowns.ability3>0); }
+      }
+      bossBatCdEl.textContent=`🏏 ${bossCooldowns.bat>0?bossCooldowns.bat.toFixed(1)+'s':'Готов'}`;
+      bossPentagramCdEl.textContent=`⭐ ${bossCooldowns.pentagram>0?bossCooldowns.pentagram.toFixed(1)+'s':'Готов'}`;
+    }
+
+    function setMessage(m,d=2) { messageEl.textContent=m; messageTimer=d; }
+
+    function damagePlayer(a) {
+      if (playerInvincible||flightMode||superFlightMode||playerHealth<=0||playerStunned) return;
+      if ((selectedCharacter==='slime')&&shieldActive&&shieldCanAbsorb) {
+        shieldCanAbsorb=false; shieldIndicator.style.display='block';
+        shieldIndicator.textContent='🛡️ Поглощён!'; setMessage('🛡️ Щит поглотил урон!'); return;
+      }
+      playerHealth=Math.max(0,playerHealth-a); playerInvincible=true; invincibleTimer=0.8;
+      if (playerHealth<=0) setMessage('💀 Вы пали...'); updateUI();
+    }
+
+    function damageNpc(a) {
+      if (npcHealth<=0||npcFlightMode) return;
+      npcHealth=Math.max(0,npcHealth-a);
+      if (npcHealth<=0) setMessage('💔 Друг пал...'); updateUI();
+    }
+
+    function damageBoss(a) {
+      if (bossHealth<=0) return;
+      bossHealth=Math.max(0,bossHealth-a);
+      if (bossHealth<=0) setMessage('🎉 Победа!'); updateUI();
+    }
+
+    function createHitbox(c,w,h,d,pos,dir,dur=250) {
+      const hb=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:0.6}));
+      hb.position.copy(pos); hb.lookAt(pos.clone().add(dir)); scene.add(hb);
+      setTimeout(()=>scene.remove(hb),dur);
+    }
+
+    function summonSkeleton() {
+      if (playerHealth<=0||bossHealth<=0||playerCooldowns.summon>0) return;
+      playerCooldowns.summon=PLAYER_COOLDOWNS.summon;
+      const g=new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(0.25,0.7,0.25),new THREE.MeshStandardMaterial({color:0xdddddd})).position.y=0.35);
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.2,6,6),new THREE.MeshStandardMaterial({color:0xeeeeee})).position.y=0.8);
+      const off=(Math.random()-0.5)*3;
+      g.position.copy(playerGroup.position).add(new THREE.Vector3(off,0,off)); g.position.y=3.5;
+      scene.add(g);
+      skeletons.push({group:g,attackTimer:0.6+Math.random()*0.4});
+      updateUI();
+    }
+
+    function superPunch() {
+      if (playerHealth<=0||bossHealth<=0) return;
+      const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+      const pos=camera.position.clone().add(dir.clone().multiplyScalar(2.5));
+      createHitbox(0xff8800,3,3,3,pos,dir,400);
+      if (pos.distanceTo(bossGroup.position)<5) { damageBoss(45); setMessage('💥 Супер удар!'); }
+    }
+
+    function stunPlayer() {
+      if (!playerStunned&&!flightMode&&!superFlightMode) { playerStunned=true; stunTimer=1.5; setMessage('💫 Оглушены!'); }
+    }
+
+    function npcBasicAttack() {
+      if (npcHealth<=0||bossHealth<=0) return;
+      const d=new THREE.Vector3().subVectors(bossGroup.position,npcGroup.position).normalize();
+      const p=npcGroup.position.clone().add(d.clone().multiplyScalar(1.8));
+      createHitbox(0x00ffff,0.4,0.4,2.5,p,d);
+      if (p.distanceTo(bossGroup.position)<3.5) damageBoss(12);
+    }
+
+    function npcJawAttack() {
+      if (npcHealth<=0||bossHealth<=0||npcCooldowns.ability3>0) return;
+      npcCooldowns.ability3=NPC_COOLDOWNS.ability3;
+      const d=new THREE.Vector3().subVectors(bossGroup.position,npcGroup.position).normalize();
+      const p=npcGroup.position.clone().add(d.clone().multiplyScalar(1.3));
+      createHitbox(0xff4444,0.6,0.6,1.8,p,d);
+      if (p.distanceTo(bossGroup.position)<2.5) damageBoss(28);
+    }
+
+    function bossBatAttack() {
+      if (bossHealth<=0||bossCooldowns.bat>0) return;
+      bossCooldowns.bat=BOSS_COOLDOWNS.bat;
+      const targets=[];
+      if (playerHealth>0&&!flightMode&&!superFlightMode) targets.push({g:playerGroup,t:'player'});
+      if (npcHealth>0&&!npcFlightMode) targets.push({g:npcGroup,t:'npc'});
+      skeletons.forEach(s=>targets.push({g:s.group,t:'skeleton'}));
+      if (!targets.length) return;
+      const t=targets[Math.floor(Math.random()*targets.length)];
+      const dist=new THREE.Vector3().subVectors(t.g.position,bossGroup.position);
+      if (dist.length()>4.5) return;
+      if (Math.random()<0.4) return;
+      const d=dist.normalize(), p=bossGroup.position.clone().add(d.clone().multiplyScalar(1.8));
+      createHitbox(0x8b4513,0.4,0.4,2.5,p,d);
+      if (t.t==='player'&&p.distanceTo(playerGroup.position)<3) { damagePlayer(10); if(Math.random()<0.5) stunPlayer(); }
+      else if (t.t==='npc'&&p.distanceTo(npcGroup.position)<3) damageNpc(12);
+      else if (t.t==='skeleton'&&p.distanceTo(t.g.position)<3) { scene.remove(t.g); skeletons=skeletons.filter(s=>s!==t); updateUI(); }
+    }
+
+    function bossPentagram() {
+      if (bossHealth<=0||bossBuffed||bossCooldowns.pentagram>0) return;
+      bossCooldowns.pentagram=BOSS_COOLDOWNS.pentagram;
+      bossBuffed=true; bossBuffTimer=4; pentagram.visible=true; setMessage('⭐ Пентаграмма!');
+    }
+
+    function ability1() {
+      if (playerHealth<=0||bossHealth<=0||playerStunned) return;
+      if (selectedCharacter==='summoner') { summonSkeleton(); return; }
+      if (selectedCharacter==='slime'||selectedCharacter==='human') return;
+      const d=new THREE.Vector3(); camera.getWorldDirection(d);
+      const p=camera.position.clone().add(d.clone().multiplyScalar(1.8));
+      createHitbox(0xffff00,0.4,0.4,2.5,p,d);
+      if (p.distanceTo(bossGroup.position)<3.5) damageBoss(16);
+    }
+
+    function ability2() {
+      if (playerHealth<=0||bossHealth<=0||playerStunned) return;
+      if (selectedCharacter==='summoner') { summonSkeleton(); return; }
+      if (selectedCharacter==='slime') {
+        if (playerCooldowns.ability2>0) return;
+        playerCooldowns.ability2=PLAYER_COOLDOWNS.ability2;
+        shieldActive=true; shieldCanAbsorb=true; shieldIndicator.style.display='block';
+        setMessage('🛡️ Щит!');
+      } else if (selectedCharacter==='human') {
+        if (superFlightMode||playerCooldowns.ability2>0) return;
+        playerCooldowns.ability2=PLAYER_COOLDOWNS.superFlight;
+        superFlightMode=true; superFlightTimer=3.5; playerGroup.position.y=9;
+        setMessage('🚀 Супер полёт!');
+      } else {
+        if (flightMode||playerCooldowns.ability2>0) return;
+        playerCooldowns.ability2=PLAYER_COOLDOWNS.ability2;
+        flightMode=true; flightTimer=4; autoBombTimer=0; playerGroup.position.y=6.5;
+        setMessage('🚀 Полёт!');
+      }
+    }
+
+    function ability3() {
+      if (playerHealth<=0||bossHealth<=0||playerStunned) return;
+      if (selectedCharacter==='summoner') { summonSkeleton(); return; }
+      if (selectedCharacter==='slime') {
+        if (playerCooldowns.ability3>0) return;
+        if (shieldActive&&!shieldCanAbsorb) {
+          playerCooldowns.ability3=PLAYER_COOLDOWNS.ability3;
+          const d=new THREE.Vector3(); camera.getWorldDirection(d);
+          const p=camera.position.clone().add(d.clone().multiplyScalar(3));
+          createHitbox(0x00ff00,1.2,1.2,6,p,d);
+          if (p.distanceTo(bossGroup.position)<7) damageBoss(48);
+          shieldActive=false; shieldCanAbsorb=false; shieldIndicator.style.display='none';
+        }
+      } else if (selectedCharacter==='human') {
+        superPunch();
+      } else {
+        if (playerCooldowns.ability3>0) return;
+        playerCooldowns.ability3=PLAYER_COOLDOWNS.ability3;
+        const d=new THREE.Vector3(); camera.getWorldDirection(d);
+        const p=camera.position.clone().add(d.clone().multiplyScalar(1.3));
+        createHitbox(0xff0000,0.6,0.6,1.8,p,d);
+        if (p.distanceTo(bossGroup.position)<2.5) damageBoss(35);
+      }
+    }
+
+    function initAbilities() {
+      const configs = {
+        shark: {html:`<div class="ability-btn" id="btn1">⚔️<br><span class="cooldown-text">Атака</span></div><div class="ability-btn" id="btn2">🚀<br><span class="cooldown-text">Готов</span></div><div class="ability-btn" id="btn3">🦷<br><span class="cooldown-text">Готов</span></div>`,pn:'🦈 Тралала',nn:'🟢 Слизь'},
+        slime: {html:`<div class="ability-btn disabled" id="btn1">🚫<br><span class="cooldown-text">—</span></div><div class="ability-btn" id="btn2">🛡️<br><span class="cooldown-text">Готов</span></div><div class="ability-btn" id="btn3">👅<br><span class="cooldown-text">Готов</span></div>`,pn:'🟢 Слизь',nn:'🦈 Тралала'},
+        summoner: {html:`<div class="ability-btn" id="btn1">💀<br><span class="cooldown-text">1с</span></div><div class="ability-btn" id="btn2">💀<br><span class="cooldown-text">1с</span></div><div class="ability-btn" id="btn3">💀<br><span class="cooldown-text">1с</span></div>`,pn:'💀 Призыватель',nn:'🦈 Тралала'},
+        human: {html:`<div class="ability-btn disabled" id="btn1">🚫<br><span class="cooldown-text">—</span></div><div class="ability-btn" id="btn2">🚀<br><span class="cooldown-text">Готов</span></div><div class="ability-btn" id="btn3">💥<br><span class="cooldown-text" style="color:#0f0">Готов</span></div>`,pn:'👤 Человек',nn:'🦈 Тралала'}
+      };
+      const cfg=configs[selectedCharacter];
+      if (!isMobile) { abilitiesContainer.innerHTML=cfg.html; }
+      playerNameEl.textContent=cfg.pn; npcNameEl.textContent=cfg.nn;
+      if (!isMobile) {
+        ['btn1','btn2','btn3'].forEach(id=>{const b=document.getElementById(id); if(b) b.replaceWith(b.cloneNode(true));});
+        document.getElementById('btn1').addEventListener('click',ability1);
+        document.getElementById('btn2').addEventListener('click',ability2);
+        document.getElementById('btn3').addEventListener('click',ability3);
+      }
+    }
+
+    window.addEventListener('keydown',(e)=>{
+      if (!gameStarted||isMobile) return;
+      const k=e.key.toLowerCase();
+      if (k==='1') ability1();
+      if (k==='2'||k===' ') { e.preventDefault(); ability2(); }
+      if (k==='3'||k==='e') { e.preventDefault(); ability3(); }
+      if (k==='r') { resetGame(); initAbilities(); }
+    });
+    window.addEventListener('mousedown',(e)=>{
+      if (e.button===0&&gameStarted&&!isMobile&&controls&&controls.isLocked&&!playerStunned) ability1();
+    });
+
+    function resetGame() {
+      playerHealth=maxPH; bossHealth=maxBH; npcHealth=maxNH;
+      flightMode=false; flightTimer=0; superFlightMode=false; superFlightTimer=0;
+      flightBombs.forEach(b=>{if(b.mesh)scene.remove(b.mesh)}); flightBombs=[];
+      npcFlightMode=false; npcBombs.forEach(b=>{if(b.mesh)scene.remove(b.mesh)}); npcBombs=[];
+      skeletons.forEach(s=>scene.remove(s.group)); skeletons=[];
+      playerInvincible=false; playerStunned=false;
+      bossAttackTimer=1; bossSpecialTimer=2.5;
+      activeAttacks.forEach(a=>{if(a.mesh)scene.remove(a.mesh)}); activeAttacks=[];
+      bossBuffed=false; pentagram.visible=false;
+      playerCooldowns={ability2:0,ability3:0,summon:0};
+      npcCooldowns={ability2:0,ability3:0}; bossCooldowns={bat:0,pentagram:0};
+      playerGroup.position.set(0,3.5,10); npcGroup.position.set(3,3.5,8); bossGroup.position.set(0,0,-8);
+      shieldActive=false; shieldCanAbsorb=false; shieldIndicator.style.display='none';
+      updateUI(); updateCooldownUI(); setMessage('🔄 Новая битва!');
+    }
+
+    function initGame() { initAbilities(); resetGame(); animate(); }
+
+    let clock=new THREE.Clock();
+    function animate() {
+      if (!gameStarted) { requestAnimationFrame(animate); return; }
+      const delta=Math.min(clock.getDelta(),0.1);
+      
+      for (let k in playerCooldowns) playerCooldowns[k]=Math.max(0,playerCooldowns[k]-delta);
+      for (let k in npcCooldowns) npcCooldowns[k]=Math.max(0,npcCooldowns[k]-delta);
+      for (let k in bossCooldowns) bossCooldowns[k]=Math.max(0,bossCooldowns[k]-delta);
+      if (!isMobile) updateCooldownUI();
+      
+      if (playerHealth>0&&bossHealth>0) {
+        if ((!isMobile && controls && controls.isLocked) || isMobile) {
+          if (!playerStunned) {
+            const s=superFlightMode?30:(flightMode?20:10);
+            const f=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+            const r=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+            if (moveState.forward) playerGroup.position.add(f.clone().multiplyScalar(s*delta));
+            if (moveState.backward) playerGroup.position.add(f.clone().multiplyScalar(-s*delta));
+            if (moveState.left) playerGroup.position.add(r.clone().multiplyScalar(-s*delta));
+            if (moveState.right) playerGroup.position.add(r.clone().multiplyScalar(s*delta));
+          }
+        }
+        
+        if (playerStunned&&(stunTimer-=delta)<=0) playerStunned=false;
+        
+        if (superFlightMode) {
+          superFlightTimer-=delta; playerGroup.position.y=9;
+          if (superFlightTimer<=0) { superFlightMode=false; playerGroup.position.y=3.5; }
+        } else if (flightMode) {
+          flightTimer-=delta; playerGroup.position.y=6.5;
+          autoBombTimer+=delta;
+          if (autoBombTimer>=1.5) {
+            autoBombTimer-=1.5;
+            flightBombs.push({position:playerGroup.position.clone().add(new THREE.Vector3(0,-0.7,0)),velocity:-7,damage:18,radius:3.5,mesh:null});
+          }
+          if (flightTimer<=0) { flightMode=false; playerGroup.position.y=3.5; }
+        } else playerGroup.position.y=3.5;
+        
+        for (let i=flightBombs.length-1;i>=0;i--) {
+          const b=flightBombs[i]; b.velocity-=0.4*delta; b.position.y+=b.velocity*delta;
+          if (!b.mesh) { b.mesh=new THREE.Mesh(new THREE.SphereGeometry(0.5,6,6),new THREE.MeshStandardMaterial({color:0xff5500})); scene.add(b.mesh); }
+          b.mesh.position.copy(b.position);
+          if (b.position.distanceTo(bossGroup.position)<b.radius+1.2) { damageBoss(b.damage); scene.remove(b.mesh); flightBombs.splice(i,1); }
+          else if (b.position.y<-3) { scene.remove(b.mesh); flightBombs.splice(i,1); }
+        }
+        
+        for (let i=skeletons.length-1;i>=0;i--) {
+          const sk=skeletons[i];
+          const d=new THREE.Vector3().subVectors(bossGroup.position,sk.group.position); d.y=0;
+          if (d.length()>1.5) sk.group.position.add(d.normalize().multiplyScalar(3.5*delta));
+          sk.group.position.y=3.5;
+          sk.attackTimer-=delta;
+          if (sk.attackTimer<=0&&d.length()<4.5) { sk.attackTimer=0.8+Math.random()*0.4; if(sk.group.position.distanceTo(bossGroup.position)<3.5) damageBoss(5); }
+        }
+        
+        if (npcHealth>0) {
+          if (!npcFlightMode) {
+            const nd=new THREE.Vector3().subVectors(bossGroup.position,npcGroup.position); nd.y=0;
+            if (nd.length()>3.5) npcGroup.position.add(nd.normalize().multiplyScalar(2.5*delta));
+            npcGroup.position.y=3.5;
+            npcAttackTimer-=delta;
+            if (npcAttackTimer<=0&&nd.length()<5.5) {
+              if (Math.random()<0.6) npcBasicAttack(); else if (npcCooldowns.ability3<=0) npcJawAttack();
+              npcAttackTimer=1.2+Math.random()*0.6;
+            }
+          }
+        }
+        
+        const bs=bossBuffed?5:2.5;
+        const bd=new THREE.Vector3().subVectors(playerGroup.position,bossGroup.position); bd.y=0;
+        if (!flightMode&&!superFlightMode&&bd.length()>2.5) { bossGroup.position.add(bd.normalize().multiplyScalar(bs*delta)); bossGroup.rotation.y=Math.atan2(bd.x,bd.z); }
+        bossGroup.position.y=0;
+        
+        bossAttackTimer-=delta; bossSpecialTimer-=delta;
+        if (!flightMode&&!superFlightMode&&bossAttackTimer<=0&&bd.length()<10) {
+          const ad=new THREE.Vector3().subVectors(playerGroup.position,bossGroup.position).normalize();
+          activeAttacks.push({position:bossGroup.position.clone().add(ad.clone().multiplyScalar(2)),direction:ad,timer:0.5,mesh:null});
+          bossAttackTimer=bossBuffed?0.8:1.6;
+        }
+        if (bossSpecialTimer<=0) {
+          if (Math.random()<0.5&&bossCooldowns.bat<=0) bossBatAttack(); else if (bossCooldowns.pentagram<=0) bossPentagram();
+          bossSpecialTimer=bossBuffed?2.5:5;
+        }
+        if (bossBuffed&&(bossBuffTimer-=delta)<=0) { bossBuffed=false; pentagram.visible=false; }
+        
+        for (let i=activeAttacks.length-1;i>=0;i--) {
+          const a=activeAttacks[i]; a.timer-=delta; a.position.add(a.direction.clone().multiplyScalar(6*delta));
+          if (!a.mesh) { a.mesh=new THREE.Mesh(new THREE.SphereGeometry(0.4,6,6),new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0.6})); scene.add(a.mesh); }
+          a.mesh.position.copy(a.position);
+          let hit=false;
+          if (a.position.distanceTo(playerGroup.position)<1.8&&!flightMode&&!superFlightMode) { damagePlayer(bossBuffed?25:20); hit=true; }
+          else if (a.position.distanceTo(npcGroup.position)<1.8&&npcHealth>0&&!npcFlightMode) { damageNpc(bossBuffed?18:13); hit=true; }
+          else { for (let j=skeletons.length-1;j>=0;j--) { if (a.position.distanceTo(skeletons[j].group.position)<1.8) { scene.remove(skeletons[j].group); skeletons.splice(j,1); hit=true; updateUI(); break; } } }
+          if (hit||a.timer<=0) { scene.remove(a.mesh); activeAttacks.splice(i,1); }
+        }
+        
+        if (playerInvincible&&(invincibleTimer-=delta)<=0) playerInvincible=false;
+      }
+      
+      if (messageTimer>0) messageTimer-=delta; else messageEl.textContent='';
+      camera.position.copy(playerGroup.position);
+      renderer.render(scene,camera); labelRenderer.render(scene,camera);
+      requestAnimationFrame(animate);
+    }
+
+    updateMenuTitle(); animate();
+    window.addEventListener('resize',()=>{
+      camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth,window.innerHeight); labelRenderer.setSize(window.innerWidth,window.innerHeight);
+    });
+  </script>
+</body>
+</html>
